@@ -2,6 +2,10 @@ from flask import Flask, request, Response, jsonify
 from flask_cors import CORS
 import ollama
 import json
+import threading
+
+# Global lock to ensure only one request uses the GPU at a time
+gpu_lock = threading.Lock()
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
@@ -36,12 +40,16 @@ def chat():
     
     def generate():
         try:
-            stream = ollama.chat(
-                model='deepseek-r1:70b',
-                messages=messages,
-                stream=True,
-                options={'num_ctx': 1500} # Keep < 2000 to fit GPU KV cache
-            )
+            if gpu_lock.locked():
+                yield f"data: {json.dumps({'reasoning': '⏳ Another user is currently using the GPU. You are in the queue, please wait...\\n\\n'})}\n\n"
+            
+            with gpu_lock:
+                stream = ollama.chat(
+                    model='deepseek-r1:70b',
+                    messages=messages,
+                    stream=True,
+                    options={'num_ctx': 1500} # Keep < 2000 to fit GPU KV cache
+                )
             for chunk in stream:
                 if 'message' in chunk:
                     msg = chunk['message']
