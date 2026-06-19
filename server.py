@@ -39,7 +39,8 @@ def chat():
             stream = ollama.chat(
                 model='deepseek-r1:70b',
                 messages=messages,
-                stream=True
+                stream=True,
+                options={'num_ctx': 1500} # Keep < 2000 to fit GPU KV cache
             )
             for chunk in stream:
                 if 'message' in chunk and 'content' in chunk['message']:
