@@ -42,13 +42,33 @@
 
         body {
             font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.15) 0%, transparent 50%);
+            background-color: #020617;
             color: var(--text-main);
             height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated Liquid Glass Blobs */
+        .bg-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.35;
+            z-index: -1;
+            animation: float 20s infinite alternate ease-in-out;
+            pointer-events: none;
+        }
+        .blob-1 { width: 500px; height: 500px; background: #0ea5e9; top: -10%; left: -10%; }
+        .blob-2 { width: 450px; height: 450px; background: #8b5cf6; bottom: -5%; right: -5%; animation-delay: -5s; }
+        .blob-3 { width: 350px; height: 350px; background: #ec4899; top: 40%; left: 30%; animation-delay: -10s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(40px, 60px) scale(1.1); }
+            100% { transform: translate(-30px, 30px) scale(0.9); }
         }
 
         /* --- Scrollbar --- */
@@ -310,15 +330,19 @@
 
         /* Claude-style Reasoning blocks */
         details.reasoning {
-            background: var(--reasoning-bg);
-            border-left: 3px solid var(--text-muted);
-            border-radius: 0 8px 8px 0;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid #475569;
+            border-radius: 0 12px 12px 0;
             margin-bottom: 1.5rem;
             overflow: hidden;
+            backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
         
         details.reasoning[open] {
-            border-left-color: var(--accent);
+            border-left-color: #a855f7;
         }
 
         details.reasoning summary {
@@ -445,6 +469,9 @@
     </style>
 </head>
 <body>
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+    <div class="bg-blob blob-3"></div>
 
     <!-- Auth Overlay -->
     <div id="auth-overlay">
@@ -626,7 +653,7 @@
                 } else if (seg.type === 'think') {
                     // If generating and not closed, force open. If closed, collapse it.
                     let openAttr = (generating && !seg.closed) ? 'open' : '';
-                    let summaryText = (generating && !seg.closed) ? 'Thinking in progress...' : 'Reasoning Process';
+                    let summaryText = (generating && !seg.closed) ? '🤔 Thinking...' : '💡 Thought Process';
                     let parsedThink = marked.parse(seg.content);
                     finalHtml += `<details class="reasoning" ${openAttr}><summary>${summaryText}</summary><div class="reasoning-content">${parsedThink}</div></details>`;
                 }
