@@ -703,7 +703,25 @@
             sendBtn.disabled = true;
             
             const aiBubble = appendMessageDOM('assistant');
-            aiBubble.innerHTML = '<span class="cursor"></span>';
+            
+            // DOM Nodes for streaming
+            const thinkDetails = document.createElement('details');
+            thinkDetails.className = 'reasoning';
+            thinkDetails.open = true;
+            thinkDetails.style.display = 'none';
+            const thinkSummary = document.createElement('summary');
+            thinkSummary.innerHTML = '🤔 Thinking...';
+            thinkDetails.appendChild(thinkSummary);
+            const thinkContentDiv = document.createElement('div');
+            thinkContentDiv.className = 'reasoning-content';
+            thinkDetails.appendChild(thinkContentDiv);
+            
+            const mainContentDiv = document.createElement('div');
+            mainContentDiv.className = 'main-content';
+            
+            aiBubble.appendChild(thinkDetails);
+            aiBubble.appendChild(mainContentDiv);
+            
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
             let assistantContent = '';
@@ -755,8 +773,38 @@
                                 const data = JSON.parse(dataStr);
                                 if (data.content) {
                                     assistantContent += data.content;
-                                    // Update DOM smoothly with the cursor
-                                    aiBubble.innerHTML = renderAdvancedMarkdown(assistantContent, true) + '<span class="cursor"></span>';
+                                    
+                                    // Efficient DOM updates instead of bubble.innerHTML
+                                    let thinkStart = assistantContent.indexOf('<think>');
+                                    let thinkEnd = assistantContent.indexOf('</think>');
+                                    
+                                    let displayThink = '';
+                                    let displayMain = '';
+                                    
+                                    if (thinkStart !== -1) {
+                                        thinkDetails.style.display = 'block';
+                                        if (thinkEnd !== -1) {
+                                            displayThink = assistantContent.substring(thinkStart + 7, thinkEnd);
+                                            displayMain = assistantContent.substring(0, thinkStart) + assistantContent.substring(thinkEnd + 8);
+                                            thinkSummary.innerHTML = '💡 Thought Process';
+                                        } else {
+                                            displayThink = assistantContent.substring(thinkStart + 7);
+                                            displayMain = assistantContent.substring(0, thinkStart);
+                                            thinkSummary.innerHTML = '🤔 Thinking...';
+                                        }
+                                    } else {
+                                        displayMain = assistantContent;
+                                    }
+                                    
+                                    if (thinkEnd !== -1) {
+                                        thinkContentDiv.innerHTML = marked.parse(displayThink);
+                                        mainContentDiv.innerHTML = marked.parse(displayMain) + '<span class="cursor"></span>';
+                                    } else if (thinkStart !== -1) {
+                                        thinkContentDiv.innerHTML = marked.parse(displayThink) + '<span class="cursor"></span>';
+                                        mainContentDiv.innerHTML = marked.parse(displayMain);
+                                    } else {
+                                        mainContentDiv.innerHTML = marked.parse(displayMain) + '<span class="cursor"></span>';
+                                    }
                                     
                                     // Syntax highlighting debounced
                                     if (window.Prism && Math.random() < 0.1) {
@@ -768,7 +816,7 @@
                                     }
                                 } else if (data.error) {
                                     assistantContent += `\n\n**Error:** ${data.error}`;
-                                    aiBubble.innerHTML = renderAdvancedMarkdown(assistantContent, false);
+                                    mainContentDiv.innerHTML = marked.parse(assistantContent);
                                 }
                             } catch (e) {}
                         }
@@ -776,10 +824,18 @@
                 }
             } catch (err) {
                 assistantContent += `\n\n**Connection Error:** Could not reach the server.`;
-                aiBubble.innerHTML = renderAdvancedMarkdown(assistantContent, false);
+                mainContentDiv.innerHTML = marked.parse(assistantContent);
             } finally {
-                // Final render (closed think block) and highlight
-                aiBubble.innerHTML = renderAdvancedMarkdown(assistantContent, false);
+                // Remove cursor from main content
+                if (mainContentDiv.innerHTML.endsWith('<span class="cursor"></span>')) {
+                    mainContentDiv.innerHTML = mainContentDiv.innerHTML.slice(0, -28);
+                }
+                
+                // Collapse the think block automatically upon completion like Claude
+                if (thinkDetails.style.display === 'block') {
+                    thinkDetails.open = false;
+                }
+                
                 if (window.Prism) Prism.highlightAllUnder(aiBubble);
                 
                 conversationHistory.push({ role: 'assistant', content: assistantContent });
