@@ -6,6 +6,9 @@ import json
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
+# Lab access password
+PASSWORD = "cdfd"
+
 @app.route('/')
 def index():
     return app.send_static_file('index.html')
@@ -14,9 +17,21 @@ def index():
 def health():
     return jsonify({"status": "ok", "model": "deepseek-r1:70b"})
 
+@app.route('/verify', methods=['POST'])
+def verify():
+    data = request.json
+    if data and data.get('password') == PASSWORD:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "Invalid password. Authorized personnel only."}), 401
+
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.json
+    
+    # Secure the chat endpoint
+    if not data or data.get('password') != PASSWORD:
+        return jsonify({"error": "Unauthorized"}), 401
+        
     messages = data.get('messages', [])
     
     def generate():
@@ -37,5 +52,5 @@ def chat():
     return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    # Bind to 0.0.0.0 to allow LAN access
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Bind to 0.0.0.0 for LAN access and use threaded=True for multiple concurrent users
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
